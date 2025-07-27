@@ -96,13 +96,16 @@ app.post('/shopify-webhook', async (req, res) => {
       itemList += `• ${name} ×${quantity} — $${subtotal}\n`;
     }
 
+    // ✅ Fixed Discord ID validation
     let targetUser = null;
-    if (discordId) {
+    if (discordId && /^\d{17,20}$/.test(discordId)) {
       try {
         targetUser = await client.users.fetch(discordId);
       } catch (e) {
         console.warn(`❌ Could not fetch user with ID ${discordId}:`, e);
       }
+    } else {
+      console.warn(`⚠️ Skipped invalid Discord ID: "${discordId}"`);
     }
 
     let paymentLink = null;
@@ -151,7 +154,7 @@ app.post('/shopify-webhook', async (req, res) => {
           { name: '📌 Status', value: '⏳ Payment Pending', inline: false },
           { name: '🛒 Items', value: itemList.trim() || 'None', inline: false },
           { name: '💰 Total', value: `$${totalPrice.toFixed(2)}`, inline: true },
-          { name: '👤 Buyer', value: `<@${discordId}>`, inline: true }
+          { name: '👤 Buyer', value: /^\d{17,20}$/.test(discordId) ? `<@${discordId}>` : '❌ Invalid Discord ID', inline: true }
         )
         .setTimestamp()
         .setFooter({ text: 'Bloom Haven AutoOrder v2.1' });
@@ -167,4 +170,5 @@ app.post('/shopify-webhook', async (req, res) => {
     res.status(500).send('Internal Error');
   }
 });
+
 app.listen(PORT, () => console.log(`🌐 Web server running on port ${PORT}`));
