@@ -9,7 +9,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent // ✅ Needed to receive DM text
   ],
   partials: ['CHANNEL']
 });
@@ -47,6 +48,7 @@ client.once('ready', async () => {
   }, 2000);
 });
 
+// 🎮 Slash Commands & Poll Voting
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
@@ -59,7 +61,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // 🗳️ Poll vote handling
   if (interaction.isButton()) {
     const [prefix, index] = interaction.customId.split('_');
     if (prefix !== 'poll') return;
@@ -90,9 +91,10 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// 💬 DM Relay
+// 💬 DM Relay System
 client.on('messageCreate', async message => {
   if (message.author.bot || message.guild) return;
+
   const logChannelId = '1399416161631993866';
   const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
   if (!logChannel) return;
@@ -120,4 +122,4 @@ app.use(bodyParser.json());
 
 app.get("/", (req, res) => res.send("Bloom Haven Bot is alive"));
 
-// Shopify webhook handler remains unchanged...
+// 🛒 Shopify webhook handler remains unchanged...
