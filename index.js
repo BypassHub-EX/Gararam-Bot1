@@ -99,11 +99,11 @@ ${link}
     );
   } else {
     return (
-`📢 **Order Confirmed**
+` **Order Confirmed**
 
-🧾 Order ID: \`#${orderID}\`
-🎮 Roblox Username: \`${robloxUsername}\`
-💳 Payment Method: ${method}
+ Order ID: \`#${orderID}\`
+ Roblox Username: \`${robloxUsername}\`
+ Payment Method: ${method}
 
 ${method === 'Trade With Us'
   ? `Please open a ticket in our Discord server:
@@ -128,3 +128,36 @@ client.once('ready', () => {
 });
 
 client.login(TOKEN);
+const { REST, Routes } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+
+// Load all slash commands
+const commands = [];
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+  const command = require(`./commands/${file}`);
+  if ('data' in command && 'execute' in command) {
+    commands.push(command.data.toJSON());
+    client.commands.set(command.data.name, command);
+  } else {
+    console.warn(`[WARN] The command at ${file} is missing a required "data" or "execute" property.`);
+  }
+}
+
+// Register slash commands with Discord API
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+(async () => {
+  try {
+    console.log('📡 Registering slash commands...');
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      { body: commands }
+    );
+    console.log('✅ Slash commands registered successfully!');
+  } catch (error) {
+    console.error('❌ Error registering commands:', error);
+  }
+})();
