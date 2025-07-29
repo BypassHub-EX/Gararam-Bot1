@@ -37,7 +37,6 @@ client.once('ready', async () => {
   }
 });
 
-// === INTERACTION HANDLER ===
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
@@ -51,7 +50,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // === POLL VOTE HANDLER ===
   if (interaction.isButton()) {
     const [prefix, index] = interaction.customId.split('_');
     if (prefix !== 'poll') return;
@@ -80,11 +78,10 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// === DM RELAY SYSTEM ===
 client.on('messageCreate', async message => {
   if (message.author.bot || message.guild) return;
 
-  const logChannelId = '1399416161631993866'; // DM logs
+  const logChannelId = '1399416161631993866';
   const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
   if (!logChannel) return;
 
@@ -106,13 +103,35 @@ app.get('/', (req, res) => {
 
 app.post('/webhook', async (req, res) => {
   const order = req.body;
-  const isArabic = order?.landing_site?.includes('/ar');
-  const userDiscordId = order?.note_attributes?.find(attr => attr.name.toLowerCase().includes('discord'))?.value;
 
-  if (!userDiscordId) return res.status(400).send('Missing Discord ID');
+  // Debug logs to trace payload
+  console.log('🔔 New webhook received');
+  console.log('🛒 Order ID:', order?.order_number);
+  console.log('🌐 Landing Site:', order?.landing_site);
+  console.log('📝 Note Attributes:', order?.note_attributes);
+
+  // Enhanced Arabic detection
+  const isArabic =
+    order?.landing_site?.includes('/ar') ||
+    order?.note_attributes?.some(attr =>
+      attr.name.toLowerCase().includes('lang') &&
+      attr.value.toLowerCase().includes('ar')
+    );
+
+  const userDiscordId = order?.note_attributes?.find(attr =>
+    attr.name.toLowerCase().includes('discord')
+  )?.value;
+
+  if (!userDiscordId) {
+    console.warn('⚠️ Discord ID not found in note_attributes');
+    return res.status(400).send('Missing Discord ID');
+  }
 
   const user = await client.users.fetch(userDiscordId).catch(() => null);
-  if (!user) return res.status(404).send('User not found');
+  if (!user) {
+    console.warn('⚠️ User not found on Discord:', userDiscordId);
+    return res.status(404).send('User not found');
+  }
 
   const itemNames = order?.line_items?.map(i => i.name).join(', ') || 'منتج';
   const total = order?.total_price || '?';
@@ -125,8 +144,7 @@ app.post('/webhook', async (req, res) => {
   try {
     await user.send(message);
 
-    // ✅ Confirmation Log
-    const logChannel = await client.channels.fetch('1397212138753495062'); // order logs
+    const logChannel = await client.channels.fetch('1397212138753495062');
     const embed = new EmbedBuilder()
       .setTitle(isArabic ? '📦 تم استلام طلب جديد' : '📦 New Order Received')
       .setDescription(`**User:** <@${user.id}>\n**Order ID:** #${orderId}\n**Items:** ${itemNames}\n**Total:** $${total}\n**Lang:** ${isArabic ? '🇸🇦 Arabic' : '🇺🇸 English'}`)
@@ -138,7 +156,10 @@ app.post('/webhook', async (req, res) => {
 
     return res.status(200).send('✅ DM sent and order logged');
   } catch (err) {
-    console.error(err);
+    console.error('❌ Failed to send DM:', err);
+    if (err.code === 50007) {
+      return res.status(403).send('❌ Cannot DM this user (privacy settings)');
+    }
     return res.status(500).send('❌ Failed to DM or log order');
   }
 });
@@ -147,11 +168,9 @@ app.listen(PORT, () => {
   console.log(`🌐 Web server running on port ${PORT}`);
 });
 
-// === LOAD messageMap IF NEEDED ===
 const messageMapPath = './messageMap.json';
 if (fs.existsSync(messageMapPath)) {
   global.messageMap = JSON.parse(fs.readFileSync(messageMapPath, 'utf8'));
 }
 
-// === LOGIN BOT ===
 client.login(process.env.DISCORD_TOKEN);
