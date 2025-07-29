@@ -3,7 +3,6 @@ const { Client, GatewayIntentBits, Partials, EmbedBuilder, REST, Routes } = requ
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const path = require('path');
 
 const client = new Client({
   intents: [
@@ -15,16 +14,15 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-client.commands = new Map(); // ✅ FIXED COMMANDS
-
 const app = express();
 const PORT = process.env.PORT || 8080;
 const TOKEN = process.env.BOT_TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
+const CLIENT_ID = '1396258538460020856';
 
 app.use(bodyParser.json());
 
+// SHOPIFY WEBHOOK HANDLER
 app.post('/shopify-webhook', async (req, res) => {
   const order = req.body;
 
@@ -37,105 +35,102 @@ app.post('/shopify-webhook', async (req, res) => {
   const landing = order?.landing_site?.toLowerCase() || '';
   const isArabic = landing.includes('/ar') || landing.includes('bloomhaven.store/ar');
   const language = isArabic ? 'Arabic' : 'English';
-  const userMention = discordID ? `<@${discordID}>` : 'Unknown';
 
-  // Log Order
-  const logEmbed = new EmbedBuilder()
-    .setTitle('📦 New Order Received')
+  const userMention = discordID ? `<@${discordID}>` : 'Unknown';
+  const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+
+  // LOG TO CHANNEL
+  const embed = new EmbedBuilder()
+    .setTitle('📦 New Order')
     .addFields(
-      { name: 'Order ID', value: `#${orderID}`, inline: true },
       { name: 'User', value: userMention, inline: true },
-      { name: 'Roblox Username', value: robloxUsername, inline: true },
+      { name: 'Order ID', value: `#${orderID}`, inline: true },
       { name: 'Items', value: items },
       { name: 'Total', value: `$${total}`, inline: true },
       { name: 'Payment Method', value: method, inline: true },
       { name: 'Language', value: isArabic ? '🇸🇦 Arabic' : '🇺🇸 English', inline: true }
     )
-    .setColor('Green')
-    .setTimestamp();
+    .setTimestamp()
+    .setColor('Green');
 
-  const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
-  if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+  if (logChannel) logChannel.send({ embeds: [embed] });
 
-  // DM Confirmation
+  // DM TO BUYER
   if (discordID) {
-    const dmContent = await generateDM({ language, orderID, robloxUsername, method, total });
-
     try {
       const user = await client.users.fetch(discordID);
-      await user.send(dmContent);
-      if (logChannel) await logChannel.send(`✅ DM sent to <@${discordID}>`);
+      const dmText = generateDM({ language, orderID, robloxUsername, method, total });
+      await user.send(dmText);
+      if (logChannel) logChannel.send(`✅ DM sent to <@${discordID}>`);
     } catch (err) {
-      if (logChannel) await logChannel.send(`❌ Could not send DM to <@${discordID}>`);
+      if (logChannel) logChannel.send(`❌ Failed to DM <@${discordID}>`);
     }
   }
 
   res.sendStatus(200);
 });
 
+// ORDER CONFIRMATION DM TEXT
 function generateDM({ language, orderID, robloxUsername, method, total }) {
-  const links = {
+  const paymentLinks = {
     'PayPal': 'https://www.paypal.com/paypalme/oilmoney001',
     'Ko-fi': 'https://ko-fi.com/oilmoney01',
     'Trade With Us': 'http://discord.gg/bloomhaven1'
   };
-  const link = links[method] || 'Unavailable';
+
+  const link = paymentLinks[method] || 'Unavailable';
 
   if (language === 'Arabic') {
     return (
-`**تم تأكيد طلبك بنجاح**
+`📢 **تم تأكيد الطلب**
 
-🔹 رقم الطلب: \`#${orderID}\`
-🔹 اسم مستخدم روبلوكس: \`${robloxUsername}\`
-🔹 طريقة الدفع: ${method}
+📄 رقم الطلب: \`#${orderID}\`
+👤 اسم مستخدم روبلوكس: \`${robloxUsername}\`
+💳 طريقة الدفع: ${method}
 
 ${method === 'Trade With Us' ? 
-`يرجى فتح تذكرة في خادمنا الرسمي عبر هذا الرابط:
+`يرجى فتح تذكرة عبر الرابط التالي:
 ${link}
-ثم اختيار "الدفع عبر التداول".` 
-: 
-`يرجى دفع المبلغ: **${total} دولار**
-رابط الدفع:
+ثم اختيار "الدفع عبر التداول".` :
+`ادفع مبلغ \`${total}\` عبر الرابط:
 ${link}
+تأكد من تطابق الاسم، وسيتم التحقق تلقائيًا.`}
 
-تأكد من تطابق الاسم مع الطلب ليتم التحقق تلقائيًا.`}
-
-سيتم تجهيز طلبك بعد تأكيد الدفع.
+📦 سيتم تجهيز طلبك للتوصيل بمجرد تأكيد الدفع.
 
 شكراً لتسوقك من Bloom Haven.`
     );
   } else {
     return (
-`**Order Confirmed**
+`📢 **Order Confirmed**
 
-🔹 Order ID: \`#${orderID}\`
-🔹 Roblox Username: \`${robloxUsername}\`
-🔹 Payment Method: ${method}
+🧾 Order ID: \`#${orderID}\`
+🎮 Roblox Username: \`${robloxUsername}\`
+💳 Payment Method: ${method}
 
-${method === 'Trade With Us' ?
-`Please open a ticket in our official Discord:
+${method === 'Trade With Us' ? 
+`Please open a ticket in our Discord:
 ${link}
-Then choose the topic: "Pay By Trading".`
-:
-`Please pay **$${total}** using the following link:
+And choose "Pay By Trading" as your topic.` :
+`Send \`$${total}\` via:
 ${link}
+Make sure your name matches your order.`}
 
-Make sure your name matches your order for automatic verification.`}
-
-Once payment is confirmed, your order will be prepared.
+📦 Once verified, your order will be queued for delivery.
 
 Thanks for ordering from Bloom Haven.`
     );
   }
 }
 
-// App + Bot Ready
+// LOGIN BOT
 client.once('ready', () => {
   console.log(`✅ Bloom Haven Bot is online as ${client.user.tag}`);
-  app.listen(PORT, () => console.log(`🌐 Webhook server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`🌐 Web server running on port ${PORT}`));
 });
 
-// Register Slash Commands
+// REGISTER SLASH COMMANDS
+client.commands = new Map();
 const commands = [];
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
@@ -145,19 +140,21 @@ for (const file of commandFiles) {
     commands.push(command.data.toJSON());
     client.commands.set(command.data.name, command);
   } else {
-    console.warn(`[WARN] Command ${file} missing data or execute.`);
+    console.warn(`[WARN] Command at ${file} is missing required "data" or "execute".`);
   }
 }
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-
 (async () => {
   try {
     console.log('📡 Registering slash commands...');
-    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      { body: commands }
+    );
     console.log('✅ Slash commands registered successfully!');
-  } catch (error) {
-    console.error('❌ Error registering slash commands:', error);
+  } catch (err) {
+    console.error('❌ Error registering commands:', err);
   }
 })();
 
