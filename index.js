@@ -101,16 +101,14 @@ app.get('/', (req, res) => {
   res.send('🌸 Bloom Haven Bot is online and accepting webhooks!');
 });
 
-app.post('/webhook', async (req, res) => {
+app.post('/shopify-webhook', async (req, res) => {
   const order = req.body;
 
-  // Debug logs to trace payload
   console.log('🔔 New webhook received');
   console.log('🛒 Order ID:', order?.order_number);
   console.log('🌐 Landing Site:', order?.landing_site);
   console.log('📝 Note Attributes:', order?.note_attributes);
 
-  // Enhanced Arabic detection
   const isArabic =
     order?.landing_site?.includes('/ar') ||
     order?.note_attributes?.some(attr =>
