@@ -14,7 +14,7 @@ const client = new Client({
   partials: ['CHANNEL']
 });
 
-// === SLASH COMMAND LOADER ===
+// Load slash commands
 client.commands = new Collection();
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
@@ -22,95 +22,134 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
+// Bot ready
 client.once('ready', async () => {
   console.log(`✅ Bloom Haven Bot is online as ${client.user.tag}`);
-
   const { REST, Routes } = require('discord.js');
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   const commands = commandFiles.map(file => require(`./commands/${file}`).data.toJSON());
+  await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+  console.log('✅ Slash commands registered.');
+});
 
-  try {
-    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log('✅ Slash commands registered.');
-  } catch (error) {
-    console.error('❌ Error registering commands:', error);
+// Slash command handler
+client.on('interactionCreate', async interaction => {
+  if (interaction.isChatInputCommand()) {
+    const command = client.commands.get(interaction.commandName);
+    if (!command) return;
+    try {
+      await command.execute(interaction, client);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
+    }
   }
 });
 
-// === DM FORWARDING SYSTEM ===
+// DM logging
 client.on('messageCreate', async message => {
   if (message.author.bot || message.guild) return;
-
-  const logChannelId = '1399416161631993866';
-  const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+  const logChannel = await client.channels.fetch('1399416161631993866').catch(() => null);
   if (!logChannel) return;
-
-  const content = message.content || '[No text]';
-  const attachments = message.attachments.map(att => att.url);
-  const log = `📨 **DM from ${message.author.tag}** (\`${message.author.id}\`)\n> ${content}\n\n🛠️ To reply use:\n\`/reply user:${message.author.id} message:<your message>\``;
-
-  await logChannel.send({ content: log, files: attachments.length > 0 ? attachments : undefined });
+  await logChannel.send({
+    content: `📨 **DM from ${message.author.tag}** (\`${message.author.id}\`)\n> ${message.content || '[No text]'}`,
+    files: message.attachments.map(a => a.url)
+  });
 });
 
-// === EXPRESS SERVER FOR SHOPIFY WEBHOOK ===
+// Express server
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.use(bodyParser.json());
 
-app.get('/', (req, res) => {
-  res.send('🌸 Bloom Haven Bot is online and accepting webhooks!');
-});
+app.get('/', (_, res) => res.send('🌸 Bloom Haven Bot is online!'));
 
+// Webhook
 app.post('/shopify-webhook', async (req, res) => {
   const order = req.body;
+  const discordId = order?.customer?.last_name?.trim();
+  const robloxUser = order?.customer?.first_name?.trim();
+  const orderId = order?.order_number || '?';
+  const total = order?.total_price || '?';
+  const paymentMethod = order?.payment_gateway_names?.[0] || 'Not Found';
+  const items = order?.line_items?.map(i => `${i.name} x${i.quantity}`).join('\n') || 'No items';
+  const landingSite = order?.landing_site || '';
 
-  console.log('🔔 New webhook received');
-  console.log('🛒 Order ID:', order?.order_number);
-  console.log('🌐 Landing Site:', order?.landing_site);
+  const isArabic = landingSite.includes('/ar');
 
-  const isArabic = order?.landing_site?.includes('/ar');
-  const discordId = order?.customer?.last_name;
-  const robloxUser = order?.customer?.first_name;
-
-  if (!discordId) {
-    console.warn('⚠️ Discord ID (last name) not found');
-    return res.status(400).send('Missing Discord ID');
+  if (!discordId || !robloxUser) {
+    console.warn('⚠️ Missing Discord ID or Roblox username');
+    return res.status(400).send('Missing buyer info');
   }
 
   const user = await client.users.fetch(discordId).catch(() => null);
   if (!user) {
-    console.warn('⚠️ User not found on Discord:', discordId);
-    return res.status(404).send('User not found');
+    console.warn('⚠️ Cannot find Discord user');
+    return res.status(404).send('Discord user not found');
   }
 
-  const itemNames = order?.line_items?.map(i => i.name).join(', ') || 'منتج';
-  const total = order?.total_price || '?';
-  const orderId = order?.order_number || '؟';
-
+  // Message
   const message = isArabic
-    ? `🧾 **تم استلام طلبك في بلوم هيفن!**\n\n👤 مستخدم روبلوكس: ${robloxUser}\n🛍️ المنتجات: ${itemNames}\n💵 المبلغ: ${total}$\n📦 رقم الطلب: #${orderId}\n\nيرجى إتمام الدفع حسب الطريقة المحددة.\n– فريق بلوم هيفن`
-    : `🧾 **Your Bloom Haven order has been received!**\n\n👤 Roblox User: ${robloxUser}\n🛍️ Items: ${itemNames}\n💵 Total: $${total}\n📦 Order ID: #${orderId}\n\nPlease proceed with payment.\n– Bloom Haven Team`;
+    ? `🤖 **تم تأكيد طلبك تلقائيًا**
+
+🧾 **رقم الطلب:** \`#${orderId}\`
+🎮 **اسم روبلوكس:** \`${robloxUser}\`
+💳 **طريقة الدفع المحددة:** \`${paymentMethod}\`
+
+✅ تم تسجيل طلبك وهو بانتظار الدفع الآن.
+
+🔗 **رابط الدفع:** https://www.paypal.com/paypalme/oilmoney001
+
+1️⃣ ادفع المبلغ المطلوب بدقة عبر الرابط أعلاه.  
+2️⃣ تأكد من تطابق الاسم مع الطلب.  
+3️⃣ سيتم التحقق من الدفع تلقائيًا.
+
+📡 سيتم التحقق من الدفع تلقائيًا.  
+📦 بعد التأكيد، سيتم تجهيز الطلب للتسليم داخل اللعبة.
+
+💬 هذه الرسالة تم إنشاؤها بواسطة **Bloom Haven AutoOrder v2.1**`
+    : `🤖 **Order Confirmed Automatically**
+
+🧾 **Order ID:** \`#${orderId}\`
+🎮 **Roblox Username:** \`${robloxUser}\`
+💳 **Selected Payment Method:** \`${paymentMethod}\`
+
+✅ Your order has been registered and is now pending payment.
+
+🔗 **Payment Link:** https://www.paypal.com/paypalme/oilmoney001
+
+1️⃣ Donate the exact amount of your items via the PayPal link above.  
+2️⃣ Ensure your name matches your order.  
+3️⃣ Payment will be auto-verified shortly.
+
+📡 Our system will automatically verify your payment.  
+📦 Once confirmed, your item will be queued for in-game delivery.
+
+💬 This message was generated by **Bloom Haven AutoOrder v2.1**`;
+
+  // Log Embed
+  const embed = new EmbedBuilder()
+    .setTitle(isArabic ? '📦 تم استلام طلب جديد' : '📦 New Order Received')
+    .setDescription(
+      `**User:** <@${discordId}>\n` +
+      `**Order ID:** #${orderId}\n` +
+      `**Roblox:** ${robloxUser}\n` +
+      `**Items:**\n${items}\n` +
+      `**Total:** $${total}\n` +
+      `**Lang:** ${isArabic ? '🇸🇦 Arabic' : '🇺🇸 English'}`
+    )
+    .setColor(isArabic ? 0xf1c40f : 0x2ecc71)
+    .setTimestamp();
 
   try {
     await user.send(message);
-
     const logChannel = await client.channels.fetch('1397212138753495062');
-    const embed = new EmbedBuilder()
-      .setTitle(isArabic ? '📦 تم استلام طلب جديد' : '📦 New Order Received')
-      .setDescription(`**User:** <@${user.id}>\n**Order ID:** #${orderId}\n**Items:** ${itemNames}\n**Total:** $${total}\n**Roblox:** ${robloxUser}\n**Lang:** ${isArabic ? '🇸🇦 Arabic' : '🇺🇸 English'}`)
-      .setColor(isArabic ? 0xf1c40f : 0x5865f2)
-      .setTimestamp();
-
     await logChannel.send({ embeds: [embed] });
-    await logChannel.send(`✅ DM sent to <@${user.id}>`);
-
-    return res.status(200).send('✅ DM sent and order logged');
+    await logChannel.send(`✅ DM sent to <@${discordId}>`);
+    return res.status(200).send('✅ Message sent and order logged');
   } catch (err) {
-    console.error('❌ Failed to send DM:', err);
-    if (err.code === 50007) {
-      return res.status(403).send('❌ Cannot DM this user (privacy settings)');
-    }
-    return res.status(500).send('❌ Failed to DM or log order');
+    console.error('❌ Failed to DM or log:', err);
+    return res.status(500).send('❌ DM or logging failed');
   }
 });
 
