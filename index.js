@@ -14,6 +14,7 @@ const client = new Client({
   partials: ['CHANNEL']
 });
 
+// === SLASH COMMAND LOADER ===
 client.commands = new Collection();
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
@@ -24,26 +25,19 @@ for (const file of commandFiles) {
 client.once('ready', async () => {
   console.log(`✅ Bloom Haven Bot is online as ${client.user.tag}`);
 
-  setTimeout(async () => {
-    const { REST, Routes } = require('discord.js');
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    const commands = [];
+  const { REST, Routes } = require('discord.js');
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  const commands = commandFiles.map(file => require(`./commands/${file}`).data.toJSON());
 
-    for (const file of commandFiles) {
-      const command = require(`./commands/${file}`);
-      commands.push(command.data.toJSON());
-    }
-
-    try {
-      await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-      console.log('✅ Slash commands registered.');
-    } catch (error) {
-      console.error('❌ Error registering commands:', error);
-    }
-  }, 2000);
+  try {
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+    console.log('✅ Slash commands registered.');
+  } catch (error) {
+    console.error('❌ Error registering commands:', error);
+  }
 });
 
-// Handle slash command execution
+// === INTERACTION HANDLER ===
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
@@ -57,7 +51,7 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // Poll voting
+  // === POLL VOTE HANDLER ===
   if (interaction.isButton()) {
     const [prefix, index] = interaction.customId.split('_');
     if (prefix !== 'poll') return;
@@ -79,7 +73,6 @@ client.on('interactionCreate', async interaction => {
 
     pollData.votes[userId] = parseInt(index);
     const selected = pollData.options[parseInt(index)];
-
     await interaction.reply({
       content: `✅ You voted for **${selected}**.`,
       ephemeral: true
@@ -87,11 +80,11 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// DM relay system
+// === DM RELAY SYSTEM ===
 client.on('messageCreate', async message => {
   if (message.author.bot || message.guild) return;
 
-  const logChannelId = '1399416161631993866';
+  const logChannelId = '1399416161631993866'; // DM logs
   const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
   if (!logChannel) return;
 
@@ -102,20 +95,19 @@ client.on('messageCreate', async message => {
   await logChannel.send({ content: log, files: attachments.length > 0 ? attachments : undefined });
 });
 
-// Express Web Server (for Shopify, etc.)
+// === EXPRESS SERVER FOR SHOPIFY WEBHOOK ===
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
-  res.send('🌸 Bloom Haven Bot is alive and speaking Arabic too!');
+  res.send('🌸 Bloom Haven Bot is online and accepting webhooks!');
 });
 
-// Webhook handler for Shopify (Arabic detection)
 app.post('/webhook', async (req, res) => {
   const order = req.body;
   const isArabic = order?.landing_site?.includes('/ar');
-  const userDiscordId = order?.note_attributes?.find(attr => attr.name === 'discord')?.value;
+  const userDiscordId = order?.note_attributes?.find(attr => attr.name.toLowerCase().includes('discord'))?.value;
 
   if (!userDiscordId) return res.status(400).send('Missing Discord ID');
 
@@ -132,10 +124,22 @@ app.post('/webhook', async (req, res) => {
 
   try {
     await user.send(message);
-    res.status(200).send('Message sent');
+
+    // ✅ Confirmation Log
+    const logChannel = await client.channels.fetch('1397212138753495062'); // order logs
+    const embed = new EmbedBuilder()
+      .setTitle(isArabic ? '📦 تم استلام طلب جديد' : '📦 New Order Received')
+      .setDescription(`**User:** <@${user.id}>\n**Order ID:** #${orderId}\n**Items:** ${itemNames}\n**Total:** $${total}\n**Lang:** ${isArabic ? '🇸🇦 Arabic' : '🇺🇸 English'}`)
+      .setColor(isArabic ? 0xf1c40f : 0x5865f2)
+      .setTimestamp();
+
+    await logChannel.send({ embeds: [embed] });
+    await logChannel.send(`✅ DM sent to <@${user.id}>`);
+
+    return res.status(200).send('✅ DM sent and order logged');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Failed to DM user');
+    return res.status(500).send('❌ Failed to DM or log order');
   }
 });
 
@@ -143,11 +147,11 @@ app.listen(PORT, () => {
   console.log(`🌐 Web server running on port ${PORT}`);
 });
 
-// Load messageMap if used
+// === LOAD messageMap IF NEEDED ===
 const messageMapPath = './messageMap.json';
 if (fs.existsSync(messageMapPath)) {
   global.messageMap = JSON.parse(fs.readFileSync(messageMapPath, 'utf8'));
 }
 
-// Login bot
+// === LOGIN BOT ===
 client.login(process.env.DISCORD_TOKEN);
