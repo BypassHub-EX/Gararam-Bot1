@@ -1,8 +1,10 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, EmbedBuilder, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, Collection } = require('discord.js');
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
+const { REST, Routes } = require('discord.js');
+const path = require('path');
 
 const client = new Client({
   intents: [
@@ -14,17 +16,23 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
+client.commands = new Collection();
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 const TOKEN = process.env.BOT_TOKEN;
-const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const CLIENT_ID = '1396258538460020856';
+const LOG_CHANNEL_ID = '1397212138753495062';
 
 app.use(bodyParser.json());
 
-// SHOPIFY WEBHOOK HANDLER
+// ========== ORDER HANDLER ==========
 app.post('/shopify-webhook', async (req, res) => {
   const order = req.body;
+  const createdAt = new Date(order?.created_at);
+  const now = new Date();
+  const diffMs = now - createdAt;
+  if (diffMs > 1000 * 60 * 60 * 12) return res.sendStatus(200); // Ignore old orders
 
   const robloxUsername = order?.customer?.first_name || 'Unknown';
   const discordID = order?.customer?.last_name || null;
@@ -35,13 +43,10 @@ app.post('/shopify-webhook', async (req, res) => {
   const landing = order?.landing_site?.toLowerCase() || '';
   const isArabic = landing.includes('/ar') || landing.includes('bloomhaven.store/ar');
   const language = isArabic ? 'Arabic' : 'English';
-
   const userMention = discordID ? `<@${discordID}>` : 'Unknown';
-  const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
 
-  // LOG TO CHANNEL
-  const embed = new EmbedBuilder()
-    .setTitle('📦 New Order')
+  const logEmbed = new EmbedBuilder()
+    .setTitle('🧾 New Order Received')
     .addFields(
       { name: 'User', value: userMention, inline: true },
       { name: 'Order ID', value: `#${orderID}`, inline: true },
@@ -53,16 +58,16 @@ app.post('/shopify-webhook', async (req, res) => {
     .setTimestamp()
     .setColor('Green');
 
-  if (logChannel) logChannel.send({ embeds: [embed] });
+  const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+  if (logChannel) logChannel.send({ embeds: [logEmbed] });
 
-  // DM TO BUYER
   if (discordID) {
+    const dm = await generateDM({ language, orderID, robloxUsername, method, total });
     try {
       const user = await client.users.fetch(discordID);
-      const dmText = generateDM({ language, orderID, robloxUsername, method, total });
-      await user.send(dmText);
+      await user.send(dm);
       if (logChannel) logChannel.send(`✅ DM sent to <@${discordID}>`);
-    } catch (err) {
+    } catch {
       if (logChannel) logChannel.send(`❌ Failed to DM <@${discordID}>`);
     }
   }
@@ -70,77 +75,76 @@ app.post('/shopify-webhook', async (req, res) => {
   res.sendStatus(200);
 });
 
-// ORDER CONFIRMATION DM TEXT
+// ========== DM GENERATOR ==========
 function generateDM({ language, orderID, robloxUsername, method, total }) {
   const paymentLinks = {
     'PayPal': 'https://www.paypal.com/paypalme/oilmoney001',
     'Ko-fi': 'https://ko-fi.com/oilmoney01',
     'Trade With Us': 'http://discord.gg/bloomhaven1'
   };
-
   const link = paymentLinks[method] || 'Unavailable';
 
   if (language === 'Arabic') {
     return (
-`📢 **تم تأكيد الطلب**
+`🧾 **تم تأكيد طلبك**
 
-📄 رقم الطلب: \`#${orderID}\`
-👤 اسم مستخدم روبلوكس: \`${robloxUsername}\`
-💳 طريقة الدفع: ${method}
+رقم الطلب: \`#${orderID}\`
+اسم المستخدم في روبلوكس: \`${robloxUsername}\`
+طريقة الدفع: ${method}
 
-${method === 'Trade With Us' ? 
-`يرجى فتح تذكرة عبر الرابط التالي:
+${method === 'Trade With Us'
+  ? `يرجى فتح تذكرة في سيرفرنا الرسمي:
 ${link}
-ثم اختيار "الدفع عبر التداول".` :
-`ادفع مبلغ \`${total}\` عبر الرابط:
+ثم اختر "الدفع عبر التداول".`
+  : `يرجى دفع مبلغ **${total}$** عبر الرابط:
 ${link}
-تأكد من تطابق الاسم، وسيتم التحقق تلقائيًا.`}
 
-📦 سيتم تجهيز طلبك للتوصيل بمجرد تأكيد الدفع.
+تأكد من مطابقة الاسم مع الطلب. سيتم التحقق تلقائيًا.`}
 
-شكراً لتسوقك من Bloom Haven.`
+بعد التأكيد، سيتم تجهيز طلبك للتوصيل.
+
+**شكرًا لتسوقك من Bloom Haven**`
     );
   } else {
     return (
-`📢 **Order Confirmed**
+`🧾 **Order Confirmed**
 
-🧾 Order ID: \`#${orderID}\`
-🎮 Roblox Username: \`${robloxUsername}\`
-💳 Payment Method: ${method}
+Order ID: \`#${orderID}\`
+Roblox Username: \`${robloxUsername}\`
+Payment Method: ${method}
 
-${method === 'Trade With Us' ? 
-`Please open a ticket in our Discord:
+${method === 'Trade With Us'
+  ? `Please open a ticket in our Discord server:
 ${link}
-And choose "Pay By Trading" as your topic.` :
-`Send \`$${total}\` via:
+Then select "Pay By Trading".`
+  : `Please send **$${total}** via the link below:
 ${link}
-Make sure your name matches your order.`}
 
-📦 Once verified, your order will be queued for delivery.
+Make sure your name matches the order. It will be verified automatically.`}
 
-Thanks for ordering from Bloom Haven.`
+Once confirmed, your order will be prepared for delivery.
+
+**Thanks for ordering from Bloom Haven.**`
     );
   }
 }
 
-// LOGIN BOT
+// ========== BOT READY ==========
 client.once('ready', () => {
   console.log(`✅ Bloom Haven Bot is online as ${client.user.tag}`);
-  app.listen(PORT, () => console.log(`🌐 Web server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`🌐 Webhook server is running on port ${PORT}`));
 });
 
-// REGISTER SLASH COMMANDS
-client.commands = new Map();
+// ========== SLASH COMMAND REGISTRATION ==========
 const commands = [];
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
-
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
   if ('data' in command && 'execute' in command) {
     commands.push(command.data.toJSON());
     client.commands.set(command.data.name, command);
   } else {
-    console.warn(`[WARN] Command at ${file} is missing required "data" or "execute".`);
+    console.warn(`[WARNING] Command in ${file} is missing "data" or "execute".`);
   }
 }
 
@@ -148,11 +152,8 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
     console.log('📡 Registering slash commands...');
-    await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
-      { body: commands }
-    );
-    console.log('✅ Slash commands registered successfully!');
+    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+    console.log('✅ Slash commands registered!');
   } catch (err) {
     console.error('❌ Error registering commands:', err);
   }
