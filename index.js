@@ -9,8 +9,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent // ✅ Needed to receive DM text
+    GatewayIntentBits.GuildMembers
   ],
   partials: ['CHANNEL']
 });
@@ -27,40 +26,38 @@ client.once('ready', async () => {
 
   setTimeout(async () => {
     const { REST, Routes } = require('discord.js');
-    console.log('⌛ Waiting to register slash commands...');
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     const commands = [];
-    const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
     for (const file of commandFiles) {
       const command = require(`./commands/${file}`);
       commands.push(command.data.toJSON());
     }
 
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     try {
-      await rest.put(
-        Routes.applicationCommands('1396258538460020856'),
-        { body: commands }
-      );
-      console.log('✅ Slash commands registered successfully.');
+      await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+      console.log('✅ Slash commands registered.');
     } catch (error) {
-      console.error('❌ Failed to register commands:', error);
+      console.error('❌ Error registering commands:', error);
     }
   }, 2000);
 });
 
-// 🎮 Slash Commands & Poll Voting
+// Handle slash command execution
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
+
     try {
       await command.execute(interaction, client);
     } catch (error) {
       console.error(error);
-      await interaction.reply({ content: '❌ There was an error executing this command.', ephemeral: true });
+      await interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
     }
   }
 
+  // Poll voting
   if (interaction.isButton()) {
     const [prefix, index] = interaction.customId.split('_');
     if (prefix !== 'poll') return;
@@ -68,9 +65,8 @@ client.on('interactionCreate', async interaction => {
     const pollData = Object.values(client.pollData || {}).find(data =>
       data.options[parseInt(index)] !== undefined
     );
-
     if (!pollData) {
-      return interaction.reply({ content: '❌ This poll is no longer active.', ephemeral: true });
+      return interaction.reply({ content: '❌ Poll no longer active.', ephemeral: true });
     }
 
     const userId = interaction.user.id;
@@ -91,7 +87,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// 💬 DM Relay System
+// DM relay system
 client.on('messageCreate', async message => {
   if (message.author.bot || message.guild) return;
 
@@ -106,20 +102,52 @@ client.on('messageCreate', async message => {
   await logChannel.send({ content: log, files: attachments.length > 0 ? attachments : undefined });
 });
 
-client.login(process.env.DISCORD_TOKEN);
-
-// 💾 Load existing messageMap
-const messageMapPath = './messageMap.json';
-let messageMap = {};
-if (fs.existsSync(messageMapPath)) {
-  messageMap = JSON.parse(fs.readFileSync(messageMapPath, 'utf8'));
-}
-
-// 🌐 Express App
+// Express Web Server (for Shopify, etc.)
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 
-app.get("/", (req, res) => res.send("Bloom Haven Bot is alive"));
+app.get('/', (req, res) => {
+  res.send('🌸 Bloom Haven Bot is alive and speaking Arabic too!');
+});
 
-// 🛒 Shopify webhook handler remains unchanged...
+// Webhook handler for Shopify (Arabic detection)
+app.post('/webhook', async (req, res) => {
+  const order = req.body;
+  const isArabic = order?.landing_site?.includes('/ar');
+  const userDiscordId = order?.note_attributes?.find(attr => attr.name === 'discord')?.value;
+
+  if (!userDiscordId) return res.status(400).send('Missing Discord ID');
+
+  const user = await client.users.fetch(userDiscordId).catch(() => null);
+  if (!user) return res.status(404).send('User not found');
+
+  const itemNames = order?.line_items?.map(i => i.name).join(', ') || 'منتج';
+  const total = order?.total_price || '?';
+  const orderId = order?.order_number || '؟';
+
+  const message = isArabic
+    ? `🧾 **تم استلام طلبك في بلوم هيفن!**\n\n🛍️ المنتجات: ${itemNames}\n💵 المبلغ: ${total}$\n📦 رقم الطلب: #${orderId}\n\nيرجى إتمام الدفع حسب الطريقة المحددة.\n– فريق بلوم هيفن`
+    : `🧾 **Your Bloom Haven order has been received!**\n\n🛍️ Items: ${itemNames}\n💵 Total: $${total}\n📦 Order ID: #${orderId}\n\nPlease proceed with payment.\n– Bloom Haven Team`;
+
+  try {
+    await user.send(message);
+    res.status(200).send('Message sent');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Failed to DM user');
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Web server running on port ${PORT}`);
+});
+
+// Load messageMap if used
+const messageMapPath = './messageMap.json';
+if (fs.existsSync(messageMapPath)) {
+  global.messageMap = JSON.parse(fs.readFileSync(messageMapPath, 'utf8'));
+}
+
+// Login bot
+client.login(process.env.DISCORD_TOKEN);
