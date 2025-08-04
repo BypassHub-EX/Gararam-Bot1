@@ -1,21 +1,12 @@
-// index.js - Bloom Haven Bot (Full Merged with Ticket System)
 require('dotenv').config();
-const {
-  Client, GatewayIntentBits, Partials, EmbedBuilder, ButtonBuilder, ButtonStyle,
-  ActionRowBuilder, StringSelectMenuBuilder, ChannelType, PermissionsBitField, Events
-} = require('discord.js');
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, PermissionFlagsBits } = require('discord.js');
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-
 const app = express();
+
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.MessageContent
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.DirectMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Channel]
 });
 
@@ -23,16 +14,15 @@ const PORT = process.env.PORT || 8080;
 const TOKEN = process.env.BOT_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
-const TICKET_CATEGORY_ID = "1401962962515918868";
+
+app.use(bodyParser.json());
 
 const sentOrders = new Set();
 const messageMap = {};
 
-app.use(bodyParser.json());
-
-// Shopify webhook order DM + log logic
 app.post('/shopify-webhook', async (req, res) => {
   const order = req.body;
+
   const robloxUsername = order?.customer?.first_name || 'Unknown';
   const discordID = order?.customer?.last_name || null;
   const orderID = order?.id?.toString().slice(-4) || 'Unknown';
@@ -42,10 +32,12 @@ app.post('/shopify-webhook', async (req, res) => {
   const landing = order?.landing_site?.toLowerCase() || '';
   const isArabic = landing.includes('/ar') || landing.includes('bloomhaven.store/ar');
   const language = isArabic ? 'Arabic' : 'English';
+
   if (sentOrders.has(orderID)) return res.sendStatus(200);
   sentOrders.add(orderID);
 
   const userMention = discordID ? `<@${discordID}>` : 'Unknown';
+
   const embed = new EmbedBuilder()
     .setTitle('📦 New Order')
     .addFields(
@@ -64,8 +56,12 @@ app.post('/shopify-webhook', async (req, res) => {
 
   if (discordID) {
     const dmContent = await generateDM({ language, orderID, robloxUsername, method, total });
-    const refundButton = new ButtonBuilder().setCustomId(`refund_${orderID}_${discordID}`).setLabel('Request Refund').setStyle(ButtonStyle.Danger);
+    const refundButton = new ButtonBuilder()
+      .setCustomId(`refund_${orderID}_${discordID}`)
+      .setLabel('Request Refund')
+      .setStyle(ButtonStyle.Danger);
     const row = new ActionRowBuilder().addComponents(refundButton);
+
     try {
       const user = await client.users.fetch(discordID);
       const dm = await user.send({ content: dmContent, components: [row] });
@@ -75,6 +71,7 @@ app.post('/shopify-webhook', async (req, res) => {
       if (logChannel) logChannel.send(`❌ Failed to DM <@${discordID}>`);
     }
   }
+
   res.sendStatus(200);
 });
 
@@ -85,11 +82,13 @@ function generateDM({ language, orderID, robloxUsername, method, total }) {
     'Trade With Us': 'http://discord.gg/bloomhaven1'
   };
   const link = links[method] || 'Unavailable';
+
   const instructions = method === 'Trade With Us'
     ? `Please open a ticket in our Discord: ${link}\nSelect "Pay By Trading" to proceed.`
     : `Send $${total} via the link below:\n${link}\nMake sure your name matches the order.`;
 
-  return `✅ **Order Confirmed**
+  return (
+`✅ **Order Confirmed**
 🧾 Order ID: \`#${orderID}\`
 🎮 Roblox Username: \`${robloxUsername}\`
 💳 Payment Method: ${method}
@@ -99,25 +98,98 @@ ${instructions}
 Your order will be prepared after verification.
 Thanks for ordering from Bloom Haven.
 
-_Type AR for Arabic translation 🙂_`;
+_Type AR for Arabic translation 🙂_`
+  );
 }
 
-// Refund button interaction
 client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isButton()) return;
-  const [action, orderID, userID] = interaction.customId.split('_');
-  if (action !== 'refund') return;
-  if (interaction.user.id !== userID) return interaction.reply({ content: '❌ Only the original buyer can request a refund.', ephemeral: true });
-  const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
-  const refundEmbed = new EmbedBuilder()
-    .setTitle('🔁 Refund Requested')
-    .setDescription(`Order \`#${orderID}\` has been refunded by <@${userID}>.`)
-    .setColor('Red').setTimestamp();
-  if (logChannel) logChannel.send({ embeds: [refundEmbed] });
-  await interaction.reply({ content: '✅ Your refund request has been submitted.', ephemeral: true });
+  // Refund Button
+  if (interaction.isButton() && interaction.customId.startsWith('refund_')) {
+    const [_, orderID, userID] = interaction.customId.split('_');
+    if (interaction.user.id !== userID) return interaction.reply({ content: '❌ Only the original buyer can request a refund.', ephemeral: true });
+
+    const refundEmbed = new EmbedBuilder()
+      .setTitle('🔁 Refund Requested')
+      .setDescription(`Order \`#${orderID}\` has been refunded by <@${userID}>.`)
+      .setColor('Red')
+      .setTimestamp();
+
+    const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+    if (logChannel) logChannel.send({ embeds: [refundEmbed] });
+
+    await interaction.reply({ content: '✅ Your refund request has been submitted. Staff will process it shortly.', ephemeral: true });
+  }
+
+  // Ticket Select
+  if (interaction.isStringSelectMenu() && interaction.customId === 'ptbuy_select') {
+    const topicValue = interaction.values[0];
+    const user = interaction.user;
+    const categoryId = '1401962962515918868';
+
+    const channel = await interaction.guild.channels.create({
+      name: `ticket-${user.username}`.toLowerCase(),
+      type: 0,
+      parent: categoryId,
+      permissionOverwrites: [
+        { id: interaction.guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+        { id: 'FounderRoleID', allow: [PermissionFlagsBits.ViewChannel] },
+        { id: 'CoFounderRoleID', allow: [PermissionFlagsBits.ViewChannel] },
+        { id: 'ModsRoleID', allow: [PermissionFlagsBits.ViewChannel] }
+      ],
+    });
+
+    const claimBtn = new ButtonBuilder()
+      .setCustomId('claim_ticket')
+      .setLabel('🎟 Claim')
+      .setStyle(ButtonStyle.Primary);
+    const unclaimBtn = new ButtonBuilder()
+      .setCustomId('unclaim_ticket')
+      .setLabel('🛑 Unclaim')
+      .setStyle(ButtonStyle.Secondary);
+    const closeBtn = new ButtonBuilder()
+      .setCustomId('close_ticket')
+      .setLabel('❌ Close')
+      .setStyle(ButtonStyle.Danger);
+    const btnRow = new ActionRowBuilder().addComponents(claimBtn, unclaimBtn, closeBtn);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📩 New Ticket: ${topicValue}`)
+      .setDescription(`Hello <@${user.id}>!\nA staff member will assist you shortly.\n\n<@FounderID> <@CoFounderID> <@ModsID>`)
+      .setColor('Blue')
+      .setTimestamp();
+
+    await channel.send({ content: `<@${user.id}>`, embeds: [embed], components: [btnRow] });
+    await interaction.reply({ content: `✅ Ticket created: ${channel}`, ephemeral: true });
+  }
+
+  // Claim/Unclaim/Close Logic
+  if (interaction.isButton()) {
+    const channel = interaction.channel;
+
+    if (interaction.customId === 'claim_ticket') {
+      await channel.permissionOverwrites.edit(interaction.user.id, {
+        SendMessages: true,
+        ViewChannel: true,
+      });
+      await interaction.reply({ content: `🎟 Ticket claimed by <@${interaction.user.id}>`, ephemeral: false });
+    }
+
+    if (interaction.customId === 'unclaim_ticket') {
+      await channel.permissionOverwrites.edit(interaction.user.id, {
+        SendMessages: false,
+        ViewChannel: false,
+      });
+      await interaction.reply({ content: `🛑 Ticket unclaimed by <@${interaction.user.id}>`, ephemeral: false });
+    }
+
+    if (interaction.customId === 'close_ticket') {
+      await interaction.reply({ content: '❌ Ticket will be closed in 5 seconds.', ephemeral: true });
+      setTimeout(() => channel.delete().catch(console.error), 5000);
+    }
+  }
 });
 
-// AR reply logic
 client.on('messageCreate', async message => {
   if (!message.guild && message.content.trim().toLowerCase() === 'ar') {
     const orderID = Object.entries(messageMap).find(([_, msgId]) => msgId === message.reference?.messageId)?.[0];
@@ -129,82 +201,30 @@ client.on('messageCreate', async message => {
   }
 });
 
-// Ticket command /ptbuy
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName === 'ptbuy') {
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId('select_topic')
-      .setPlaceholder('Choose a topic')
-      .addOptions([
-        { label: 'Order Help', value: 'order_help' },
-        { label: 'Trade Inquiry', value: 'trade_inquiry' },
-        { label: 'Report Issue', value: 'report_issue' }
-      ]);
-    const row = new ActionRowBuilder().addComponents(menu);
-    await interaction.reply({ content: 'Choose your topic to open a ticket:', components: [row], ephemeral: true });
-  } else if (interaction.isStringSelectMenu() && interaction.customId === 'select_topic') {
-    const topic = interaction.values[0];
-    const guild = interaction.guild;
-    const user = interaction.user;
-
-    const channel = await guild.channels.create({
-      name: `ticket-${user.username}`,
-      type: ChannelType.GuildText,
-      parent: TICKET_CATEGORY_ID,
-      permissionOverwrites: [
-        { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        { id: '1390980326964072560', allow: [PermissionsBitField.Flags.ViewChannel] }, // Founder
-        { id: '1390980398556909690', allow: [PermissionsBitField.Flags.ViewChannel] }, // Co-Founder
-        { id: '1401961773166362794', allow: [PermissionsBitField.Flags.ViewChannel] }  // Mods
-      ]
-    });
-
-    const claim = new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary);
-    const unclaim = new ButtonBuilder().setCustomId('unclaim').setLabel('Unclaim').setStyle(ButtonStyle.Secondary);
-    const close = new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger);
-    const row = new ActionRowBuilder().addComponents(claim, unclaim, close);
-
-    await channel.send({
-      content: `Welcome <@${user.id}>! <@&1390980326964072560> <@&1390980398556909690> <@&1401961773166362794>`,
-      components: [row]
-    });
-
-    await interaction.update({ content: `✅ Ticket created: <#${channel.id}>`, components: [] });
-  } else if (interaction.isButton()) {
-    const channel = interaction.channel;
-    if (interaction.customId === 'claim') {
-      await interaction.reply({ content: `🔒 Claimed by <@${interaction.user.id}>`, ephemeral: false });
-    } else if (interaction.customId === 'unclaim') {
-      await interaction.reply({ content: `🔓 Unclaimed.`, ephemeral: false });
-    } else if (interaction.customId === 'close') {
-      await interaction.reply({ content: `🛑 Closing ticket in 5 seconds...`, ephemeral: false });
-      setTimeout(() => channel.delete().catch(console.error), 5000);
-    }
-  }
-});
-
 client.once('ready', () => {
   console.log(`✅ Bloom Haven Bot is online as ${client.user.tag}`);
   app.listen(PORT, () => console.log(`🌐 Web server running on port ${PORT}`));
 });
 
-// Slash command register
+// Slash Command Registration
 const { REST, Routes } = require('discord.js');
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-const commands = [
-  {
-    name: 'ptbuy',
-    description: 'Open a support ticket to buy or trade'
-  }
-];
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+const commands = [];
+
+for (const file of commandFiles) {
+  const command = require(`./commands/${file}`);
+  if ('data' in command && 'execute' in command) commands.push(command.data.toJSON());
+}
+
 (async () => {
   try {
+    console.log('📡 Registering slash commands...');
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
     console.log('✅ Slash commands registered!');
   } catch (err) {
     console.error('❌ Error registering commands:', err);
   }
 })();
+
 client.login(TOKEN);
