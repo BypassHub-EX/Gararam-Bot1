@@ -11,7 +11,7 @@ module.exports = {
 
   async execute(interaction) {
     const menu = new StringSelectMenuBuilder()
-      .setCustomId('purchase_topics')
+      .setCustomId('ptbuy_select') // ✅ Fixed this line
       .setPlaceholder('Select a topic')
       .addOptions(
         {
