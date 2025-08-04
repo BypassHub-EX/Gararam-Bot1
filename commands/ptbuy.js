@@ -1,7 +1,7 @@
 const {
   SlashCommandBuilder,
   ActionRowBuilder,
-  StringSelectMenuBuilder
+  StringSelectMenuBuilder,
 } = require('discord.js');
 
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
   async execute(interaction) {
     const menu = new StringSelectMenuBuilder()
       .setCustomId('ptbuy_select')
-      .setPlaceholder('📋 Choose a topic to create a ticket')
+      .setPlaceholder('Select a topic below 👇')
       .addOptions(
         {
           label: 'Support Team',
@@ -55,15 +55,15 @@ module.exports = {
           value: 'customsheckles',
           description: 'Request a custom Sheckle amount 🧳🌑',
           emoji: '🌒',
-        }
+        },
       );
 
     const row = new ActionRowBuilder().addComponents(menu);
 
     await interaction.reply({
-      content: '**Bloom Haven Ticket Panel**\nClick from the dropdown menu below to open a support ticket.',
+      content: 'Please select a topic:',
       components: [row],
-      ephemeral: false
+      ephemeral: false,
     });
   },
 };
