@@ -1,69 +1,61 @@
-const {
-  SlashCommandBuilder,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-} = require('discord.js');
+const { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ptbuy')
-    .setDescription('Opens a dropdown menu with purchase topics'),
+    .setDescription('📩 Open the Bloom Haven topic selector'),
 
   async execute(interaction) {
     const menu = new StringSelectMenuBuilder()
       .setCustomId('ptbuy_select')
-      .setPlaceholder('Select a topic below 👇')
+      .setPlaceholder('Select a topic')
       .addOptions(
         {
           label: 'Support Team',
-          value: 'support',
+          value: 'Support Team',
           description: 'Ask for help or report an issue.',
-          emoji: '🆘',
+          emoji: '🆘'
         },
         {
           label: 'Sheckles',
-          value: 'sheckles',
+          value: 'Sheckles',
           description: 'Buy trillions of in-game currency.',
-          emoji: '💰',
+          emoji: '💰'
         },
         {
           label: 'Pets',
-          value: 'pets',
+          value: 'Pets',
           description: 'Purchase rare pets like Disco Bee.',
-          emoji: '🏹',
+          emoji: '🧌'
         },
         {
           label: 'Claim Your Order',
-          value: 'claim',
+          value: 'Claim Your Order',
           description: 'Already paid? Get your items here.',
-          emoji: '📘',
+          emoji: '📘'
         },
         {
           label: 'How To Pay',
-          value: 'howtopay',
+          value: 'How To Pay',
           description: 'Need payment instructions? Click here.',
-          emoji: '📄',
+          emoji: '📰'
         },
         {
           label: 'Custom Pet Order',
-          value: 'custompet',
+          value: 'Custom Pet Order',
           description: 'Pick mutation, age 🐥, and weight ⚖️!',
-          emoji: '🧬',
+          emoji: '🧬'
         },
         {
           label: 'Custom Sheckles Order',
-          value: 'customsheckles',
-          description: 'Request a custom Sheckle amount 🧳🌑',
-          emoji: '🌒',
-        },
+          value: 'Custom Sheckles Order',
+          description: 'Request a custom Sheckle amount 💼🌑',
+          emoji: '🌕'
+        }
       );
 
     const row = new ActionRowBuilder().addComponents(menu);
 
-    await interaction.reply({
-      content: 'Please select a topic:',
-      components: [row],
-      ephemeral: false,
-    });
-  },
+    await interaction.reply({ components: [row], ephemeral: false });
+  }
 };
