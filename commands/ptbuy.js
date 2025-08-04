@@ -1,53 +1,119 @@
-const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  ChannelType,
+  PermissionFlagsBits,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+  EmbedBuilder,
+  ComponentType
+} = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ptbuy')
-    .setDescription('🎟 Open a support ticket for your order or issue'),
+    .setDescription('Create a private ticket for purchase topics')
+    .addStringOption(option =>
+      option.setName('topic')
+        .setDescription('Select your ticket topic')
+        .setRequired(true)
+        .addChoices(
+          { name: '💳 Payment Issues', value: 'Payment Issues' },
+          { name: '🤝 Trade With Us', value: 'Trade With Us' },
+          { name: '📦 Order Help', value: 'Order Help' }
+        )
+    ),
 
   async execute(interaction) {
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId('ptbuy_select')
-      .setPlaceholder('📋 Select your topic')
-      .addOptions(
+    const topic = interaction.options.getString('topic');
+    const guild = interaction.guild;
+    const categoryId = '1401962962515918868'; // your ticket category ID
+
+    // role IDs
+    const founderRole = '1390980326964072560';
+    const coFounderRole = '1390980398556909690';
+    const modsRole = '1401961773166362794';
+
+    // create the private ticket channel
+    const ticketChannel = await guild.channels.create({
+      name: `ticket-${interaction.user.username}`,
+      type: ChannelType.GuildText,
+      parent: categoryId,
+      permissionOverwrites: [
         {
-          label: 'Payment Help',
-          value: 'payment_help',
-          description: 'Issues with payment, receipt, or failed transaction',
-          emoji: '💳'
+          id: guild.id,
+          deny: [PermissionFlagsBits.ViewChannel]
         },
         {
-          label: 'Delivery Delay',
-          value: 'delivery_delay',
-          description: 'You paid but didn’t get your item yet',
-          emoji: '📦'
+          id: interaction.user.id,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         },
         {
-          label: 'Wrong Item',
-          value: 'wrong_item',
-          description: 'You got something you didn’t order',
-          emoji: '❗'
+          id: founderRole,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         },
         {
-          label: 'Refund Request',
-          value: 'refund_request',
-          description: 'You want to request a refund for your order',
-          emoji: '🔁'
+          id: coFounderRole,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         },
         {
-          label: 'General Question',
-          value: 'general_question',
-          description: 'Ask a question or get help about the store',
-          emoji: '❓'
+          id: modsRole,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         }
-      );
+      ]
+    });
 
-    const row = new ActionRowBuilder().addComponents(menu);
+    // Buttons
+    const claimBtn = new ButtonBuilder()
+      .setCustomId('claim')
+      .setLabel('Claim')
+      .setStyle(ButtonStyle.Primary);
 
-    await interaction.reply({
-      content: '📨 Select a topic to open a support ticket:',
-      components: [row],
-      ephemeral: true
+    const unclaimBtn = new ButtonBuilder()
+      .setCustomId('unclaim')
+      .setLabel('Unclaim')
+      .setStyle(ButtonStyle.Secondary);
+
+    const closeBtn = new ButtonBuilder()
+      .setCustomId('close')
+      .setLabel('Close')
+      .setStyle(ButtonStyle.Danger);
+
+    const row = new ActionRowBuilder().addComponents(claimBtn, unclaimBtn, closeBtn);
+
+    // Embed
+    const embed = new EmbedBuilder()
+      .setTitle('🎫 Ticket Opened')
+      .setDescription(`**Topic:** ${topic}\n**User:** <@${interaction.user.id}>\nA team member will assist you shortly.`)
+      .setColor('Green')
+      .setTimestamp();
+
+    await ticketChannel.send({
+      content: `<@&${founderRole}> <@&${coFounderRole}> <@&${modsRole}>`,
+      embeds: [embed],
+      components: [row]
+    });
+
+    await interaction.reply({ content: `✅ Your ticket has been created: <#${ticketChannel.id}>`, ephemeral: true });
+
+    // Handle buttons
+    const collector = ticketChannel.createMessageComponentCollector({ componentType: ComponentType.Button, time: 3600000 });
+
+    collector.on('collect', async i => {
+      if (!i.member.roles.cache.hasAny(founderRole, coFounderRole, modsRole)) {
+        return i.reply({ content: '❌ You are not authorized to use this button.', ephemeral: true });
+      }
+
+      if (i.customId === 'claim') {
+        await i.reply({ content: `✅ Ticket claimed by <@${i.user.id}>.`, ephemeral: false });
+      } else if (i.customId === 'unclaim') {
+        await i.reply({ content: `🌀 Ticket unclaimed.`, ephemeral: false });
+      } else if (i.customId === 'close') {
+        await i.reply({ content: '⏳ Ticket will be closed in 5 seconds...', ephemeral: false });
+        setTimeout(() => {
+          ticketChannel.delete().catch(() => null);
+        }, 5000);
+      }
     });
   }
 };
