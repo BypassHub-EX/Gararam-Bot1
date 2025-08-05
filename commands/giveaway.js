@@ -1,16 +1,15 @@
 const {
   SlashCommandBuilder,
   EmbedBuilder,
-  AttachmentBuilder
 } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('giveaway')
     .setDescription('🎉 Create a giveaway embed')
-    .addStringOption(option =>
+    .addAttachmentOption(option =>
       option.setName('media')
-        .setDescription('Image URL for the giveaway')
+        .setDescription('Upload an image')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('title')
@@ -26,16 +25,21 @@ module.exports = {
         .setRequired(true)),
 
   async execute(interaction) {
-    const media = interaction.options.getString('media');
+    const media = interaction.options.getAttachment('media');
     const title = interaction.options.getString('title');
     const description = interaction.options.getString('description');
     const prize = interaction.options.getString('prize');
+
+    // Only accept image types
+    if (!media.contentType.startsWith('image/')) {
+      return interaction.reply({ content: '❌ Please upload a valid image file.', ephemeral: true });
+    }
 
     const embed = new EmbedBuilder()
       .setTitle(`🎁 ${title}`)
       .setDescription(`${description}\n\n🎉 **Prize:** ${prize}`)
       .setColor('#d9bb07')
-      .setImage(media)
+      .setImage(media.url)
       .setTimestamp()
       .setFooter({ text: `Hosted by ${interaction.user.username}` });
 
