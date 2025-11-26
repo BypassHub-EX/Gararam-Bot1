@@ -1,14 +1,12 @@
-// commands/delivered-ar.js
-
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('delivered-ar')
-    .setDescription('✅ تأكيد تسليم الطلب للعميل (بالعربية)')
+    .setDescription('تأكيد تسليم الطلب للعميل (بالعربية)')
     .addStringOption(option =>
       option.setName('orderid')
-        .setDescription('رقم الطلب (بدون #)')
+        .setDescription('رقم الطلب بدون علامة #')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('user')
@@ -21,19 +19,24 @@ module.exports = {
 
     try {
       const user = await interaction.client.users.fetch(userId);
-      await user.send(`🎁 **تم تسليم طلبك بنجاح!**
+      await user.send(
+`تم تسليم طلبك.
 
-✅ رقم الطلب: **#${orderId}**
-🎉 نشكرك على الشراء من Bloom Haven.
+رقم الطلب: #${orderId}
 
-📌 إذا كان لديك أي استفسار، لا تتردد في التواصل معنا!
+إذا كان لديك أي سؤال أو احتجت متابعة، تواصل معنا داخل السيرفر.`
+      );
 
-**- فريق Bloom Haven**`);
-
-      await interaction.reply({ content: `📨 تم تأكيد تسليم الطلب لـ <@${userId}>`, ephemeral: true });
+      await interaction.reply({ 
+        content: `تم تأكيد تسليم الطلب لـ <@${userId}>`, 
+        ephemeral: true 
+      });
     } catch (err) {
       console.error(err);
-      await interaction.reply({ content: `❌ لم أتمكن من إرسال التأكيد. تحقق من المعرف أو الرسائل الخاصة.`, ephemeral: true });
+      await interaction.reply({ 
+        content: `لم أتمكن من إرسال رسالة التأكيد. تأكد من صحة المعرف أو من السماح بالرسائل الخاصة.`, 
+        ephemeral: true 
+      });
     }
   }
 };
