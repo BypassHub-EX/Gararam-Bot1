@@ -10,6 +10,14 @@ module.exports = {
       opt.setName('image')
         .setDescription('Upload an image of your item or delivery')
         .setRequired(true))
+    .addBooleanOption(opt =>
+      opt.setName('customorder')
+        .setDescription('Was this a custom order?')
+        .setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('customname')
+        .setDescription('Enter the custom order name (leave empty if not custom)')
+        .setRequired(false))
     .addStringOption(opt =>
       opt.setName('item')
         .setDescription('What item did you purchase?')
@@ -34,30 +42,45 @@ module.exports = {
         ))
     .addStringOption(opt =>
       opt.setName('comment')
-        .setDescription('Say something about your experience!')
+        .setDescription('Say something about your experience')
         .setRequired(true)),
 
   async execute(interaction) {
     const image = interaction.options.getAttachment('image');
     const item = interaction.options.getString('item');
     const comment = interaction.options.getString('comment');
+    const customOrder = interaction.options.getBoolean('customorder');
+    const customName = interaction.options.getString('customname');
+
+    const finalItemName = customOrder
+      ? (customName || 'Custom Order')
+      : item;
 
     const embed = new EmbedBuilder()
-      .setTitle(`New Vouch for ${item}`)
+      .setTitle(`New Vouch for ${finalItemName}`)
       .setDescription(`"${comment}"`)
       .setColor(0x2ECC71)
-      .setFooter({ text: `Bloom Haven AutoOrder v2.1` })
       .setTimestamp()
       .setImage(image.url)
-      .setAuthor({ name: `${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() });
+      .setAuthor({
+        name: `${interaction.user.username}`,
+        iconURL: interaction.user.displayAvatarURL()
+      });
 
     try {
       const channel = await interaction.client.channels.fetch(VOUCH_CHANNEL_ID);
       await channel.send({ embeds: [embed] });
-      await interaction.reply({ content: 'Thanks for your vouch! It’s been posted.', ephemeral: true });
+
+      await interaction.reply({
+        content: 'Thanks for your vouch. It has been posted.',
+        ephemeral: true
+      });
     } catch (err) {
       console.error('Failed to send vouch:', err);
-      await interaction.reply({ content: 'Something went wrong posting your vouch.', ephemeral: true });
+      await interaction.reply({
+        content: 'Something went wrong while posting your vouch.',
+        ephemeral: true
+      });
     }
   }
 };
