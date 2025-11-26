@@ -1,18 +1,16 @@
-// commands/reply-ar.js
-
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('reply-ar')
-    .setDescription('📬 إرسال رد يدوي للمستخدم عبر الخاص (بالعربية)')
+    .setDescription('إرسال رد يدوي للمستخدم عبر الخاص (بالعربية)')
     .addStringOption(option =>
       option.setName('user')
         .setDescription('معرف المستخدم (Discord ID)')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('message')
-        .setDescription('الرسالة التي تريد إرسالها')
+        .setDescription('النص الذي تريد إرساله')
         .setRequired(true)),
 
   async execute(interaction) {
@@ -21,11 +19,24 @@ module.exports = {
 
     try {
       const user = await interaction.client.users.fetch(userId);
-      await user.send(`💬 **رسالة من فريق Bloom Haven:**\n\n${msg}`);
-      await interaction.reply({ content: `✅ تم إرسال الرسالة إلى <@${userId}>`, ephemeral: true });
+
+      await user.send(
+`تم إرسال رسالة إليك من الإدارة:
+
+${msg}`
+      );
+
+      await interaction.reply({
+        content: `تم إرسال الرسالة إلى <@${userId}>`,
+        ephemeral: true
+      });
+
     } catch (err) {
       console.error(err);
-      await interaction.reply({ content: `❌ تعذر إرسال الرسالة. قد تكون الرسائل الخاصة مغلقة.`, ephemeral: true });
+      await interaction.reply({
+        content: `لم أتمكن من إرسال الرسالة. قد تكون الرسائل الخاصة مغلقة.`,
+        ephemeral: true
+      });
     }
   }
 };
