@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const VOUCH_CHANNEL_ID = '1442871787930124439';
 
@@ -6,18 +6,18 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('vouch')
     .setDescription('Submit a vouch with an image and your comment')
+
+    // REQUIRED OPTIONS FIRST
     .addAttachmentOption(opt =>
       opt.setName('image')
         .setDescription('Upload an image of your item or delivery')
         .setRequired(true))
+
     .addBooleanOption(opt =>
       opt.setName('customorder')
         .setDescription('Was this a custom order?')
         .setRequired(true))
-    .addStringOption(opt =>
-      opt.setName('customname')
-        .setDescription('Enter the custom order name (leave empty if not custom)')
-        .setRequired(false))
+
     .addStringOption(opt =>
       opt.setName('item')
         .setDescription('What item did you purchase?')
@@ -40,17 +40,25 @@ module.exports = {
           { name: 'Neon Lemowzlo - $2.00', value: 'Neon Lemowzlo' },
           { name: 'Mr. Carrotitos - $0.20', value: 'Mr. Carrotitos' }
         ))
+
     .addStringOption(opt =>
       opt.setName('comment')
         .setDescription('Say something about your experience')
-        .setRequired(true)),
+        .setRequired(true))
+
+    // OPTIONAL LAST
+    .addStringOption(opt =>
+      opt.setName('customname')
+        .setDescription('Enter the custom order name (leave empty if not custom)')
+        .setRequired(false)
+    ),
 
   async execute(interaction) {
     const image = interaction.options.getAttachment('image');
-    const item = interaction.options.getString('item');
-    const comment = interaction.options.getString('comment');
     const customOrder = interaction.options.getBoolean('customorder');
+    const item = interaction.options.getString('item');
     const customName = interaction.options.getString('customname');
+    const comment = interaction.options.getString('comment');
 
     const finalItemName = customOrder
       ? (customName || 'Custom Order')
@@ -63,7 +71,7 @@ module.exports = {
       .setTimestamp()
       .setImage(image.url)
       .setAuthor({
-        name: `${interaction.user.username}`,
+        name: interaction.user.username,
         iconURL: interaction.user.displayAvatarURL()
       });
 
@@ -75,6 +83,7 @@ module.exports = {
         content: 'Thanks for your vouch. It has been posted.',
         ephemeral: true
       });
+
     } catch (err) {
       console.error('Failed to send vouch:', err);
       await interaction.reply({
