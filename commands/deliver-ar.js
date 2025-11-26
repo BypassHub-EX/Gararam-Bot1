@@ -1,14 +1,12 @@
-// commands/deliver-ar.js
-
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('deliver-ar')
-    .setDescription('📦 إرسال رابط التسليم للعميل (بالعربية)')
+    .setDescription('إرسال رابط التسليم للعميل (بالعربية)')
     .addStringOption(option =>
       option.setName('orderid')
-        .setDescription('رقم الطلب (بدون #)')
+        .setDescription('رقم الطلب بدون علامة #')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('user')
@@ -16,7 +14,7 @@ module.exports = {
         .setRequired(true))
     .addStringOption(option =>
       option.setName('link')
-        .setDescription('رابط السيرفر أو التسليم')
+        .setDescription('رابط السيرفر أو رابط التسليم')
         .setRequired(true)),
 
   async execute(interaction) {
@@ -26,19 +24,28 @@ module.exports = {
 
     try {
       const user = await interaction.client.users.fetch(userId);
-      await user.send(`🚚 **تم تجهيز طلبك!**
+      await user.send(
+`تم تجهيز طلبك.
 
-✅ رقم الطلب: **#${orderId}**
-🎯 رابط التسليم: ${link}
+رقم الطلب: #${orderId}
+رابط التسليم: ${link}
 
-💡 الرجاء الدخول لتسليم العناصر في أسرع وقت ممكن.
+يرجى الدخول في أقرب وقت لإنهاء عملية التسليم.
+إذا احتجت أي مساعدة، تواصل معنا داخل السيرفر.
 
-**- فريق Bloom Haven**`);
+فريق Grow Up`
+      );
 
-      await interaction.reply({ content: `📨 تم إرسال رابط التسليم إلى <@${userId}>`, ephemeral: true });
+      await interaction.reply({ 
+        content: `تم إرسال رابط التسليم إلى <@${userId}>`, 
+        ephemeral: true 
+      });
     } catch (err) {
       console.error(err);
-      await interaction.reply({ content: `❌ لم أستطع إرسال الرسالة. تحقق من صلاحية المعرف أو فتح الرسائل.`, ephemeral: true });
+      await interaction.reply({ 
+        content: `لم أتمكن من إرسال الرسالة. تأكد من صحة المعرف أو من السماح بالرسائل الخاصة.`, 
+        ephemeral: true 
+      });
     }
   }
 };
