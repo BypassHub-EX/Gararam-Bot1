@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-const VOUCH_CHANNEL_ID = '1442871787930124439';
+const VOUCH_CHANNEL_ID = '1443699453390229681';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,22 +23,74 @@ module.exports = {
         .setDescription('What item did you purchase?')
         .setRequired(true)
         .addChoices(
-          // PLANTS
-          { name: 'Mango - $0.40', value: 'Mango' },
-          { name: 'Gold Mango - $0.50', value: 'Gold Mango' },
-          { name: 'Shroombino - $0.30', value: 'Shroombino' },
-          { name: 'Gold Shroombino - $0.80', value: 'Gold Shroombino' },
-          { name: 'Tomatrio - $0.20', value: 'Tomatrio' },
-          { name: 'Mr. Carrot - $0.17', value: 'Mr. Carrot' },
-          { name: 'Gold Mr. Carrot - $0.20', value: 'Gold Mr. Carrot' },
-          { name: 'King Limone - $0.60', value: 'King Limone' },
-          { name: 'Star Fruit - $0.60', value: 'Star Fruit' },
-          { name: 'Neon Tomatrio - $3.00', value: 'Neon Tomatrio' },
-
-          // BRAINROTS
-          { name: 'Upsidedown 67 - $0.60', value: 'Upsidedown 67' },
-          { name: 'Neon Lemowzlo - $2.00', value: 'Neon Lemowzlo' },
-          { name: 'Mr. Carrotitos - $0.20', value: 'Mr. Carrotitos' }
+          { name: 'Guerriro Digitale - $1', value: 'Guerriro Digitale' },
+          { name: 'Job Job Job Sahur - $1', value: 'Job Job Job Sahur' },
+          { name: 'Graipuss Medussi - $2', value: 'Graipuss Medussi' },
+          { name: 'Cuadramat and Pakrahmatmamat - $3', value: 'Cuadramat and Pakrahmatmamat' },
+          { name: 'Los Jobcitos - $2', value: 'Los Jobcitos' },
+          { name: 'Nooo My Hotspot - $6', value: 'Nooo My Hotspot' },
+          { name: 'Pot Hotspot - $2', value: 'Pot Hotspot' },
+          { name: 'Telemorte - $9', value: 'Telemorte' },
+          { name: 'To To To Sahur - $3', value: 'To To To Sahur' },
+          { name: 'Pirulitoita Bicicletaire - $9', value: 'Pirulitoita Bicicletaire' },
+          { name: 'Horegini Boom - $1', value: 'Horegini Boom' },
+          { name: 'Quesadilla Crocodila - $3', value: 'Quesadilla Crocodila' },
+          { name: 'Pot Pumpkin - $6', value: 'Pot Pumpkin' },
+          { name: 'Chicleteira Bicicleteira - $6', value: 'Chicleteira Bicicleteira' },
+          { name: 'Spaghetti Tualetti - $15', value: 'Spaghetti Tualetti' },
+          { name: 'Esok Sekolah - $7', value: 'Esok Sekolah' },
+          { name: 'Quesadillo Vampiro - $8', value: 'Quesadillo Vampiro' },
+          { name: 'Burrito Bandito - $13', value: 'Burrito Bandito' },
+          { name: 'Chicleteirina Bicicleteirina - $5', value: 'Chicleteirina Bicicleteirina' },
+          { name: 'Noo My Candy - $9', value: 'Noo My Candy' },
+          { name: 'Los Nooo My Hotspotsitos - $4', value: 'Los Nooo My Hotspotsitos' },
+          { name: 'La Grande Combinassion - $5', value: 'La Grande Combinassion' },
+          { name: 'Rang Ring Bus - $7', value: 'Rang Ring Bus' },
+          { name: 'Guest 666 - $80', value: 'Guest 666' },
+          { name: 'Los Chicleteiras - $5', value: 'Los Chicleteiras' },
+          { name: '67 - $5', value: '67' },
+          { name: 'Mariachi Corazoni - $10', value: 'Mariachi Corazoni' },
+          { name: 'Swag Soda - $5', value: 'Swag Soda' },
+          { name: 'Los Combinasionas - $4', value: 'Los Combinasionas' },
+          { name: 'Tacorita Bicicleta - $15', value: 'Tacorita Bicicleta' },
+          { name: 'Nuclearo Dinosauro - $19', value: 'Nuclearo Dinosauro' },
+          { name: 'Las Sis - $10', value: 'Las Sis' },
+          { name: 'Chillin Chili - $22', value: 'Chillin Chili' },
+          { name: 'Chipso and Queso - $20', value: 'Chipso and Queso' },
+          { name: 'Money Money Puggy - $15', value: 'Money Money Puggy' },
+          { name: 'Celularcini Viciosini - $25', value: 'Celularcini Viciosini' },
+          { name: 'Los Mobilis - $5', value: 'Los Mobilis' },
+          { name: 'Los 67 - $12', value: 'Los 67' },
+          { name: 'Mieteteira Bicicleteira - $5', value: 'Mieteteira Bicicleteira' },
+          { name: 'La Spooky Grande - $13', value: 'La Spooky Grande' },
+          { name: 'Los Spooky Combinasionas - $8', value: 'Los Spooky Combinasionas' },
+          { name: 'Los Hotspositos - $17', value: 'Los Hotspositos' },
+          { name: 'Los Puggies - $10', value: 'Los Puggies' },
+          { name: 'W or L - $16', value: 'W or L' },
+          { name: 'La Extinct Grande - $10', value: 'La Extinct Grande' },
+          { name: 'Tralaledon - $60', value: 'Tralaledon' },
+          { name: 'Los Primos - $55', value: 'Los Primos' },
+          { name: 'Eviledon - $17', value: 'Eviledon' },
+          { name: 'Los Tacoritas - $30', value: 'Los Tacoritas' },
+          { name: 'Tang Tang Kelentang - $25', value: 'Tang Tang Kelentang' },
+          { name: 'Ketupat Kepat - $35', value: 'Ketupat Kepat' },
+          { name: 'Los Bros - $15', value: 'Los Bros' },
+          { name: 'Tictac Sahur - $39', value: 'Tictac Sahur' },
+          { name: 'La Supreme Combinasion - $100', value: 'La Supreme Combinasion' },
+          { name: 'Orcaledon - $27', value: 'Orcaledon' },
+          { name: 'Ketchuru and Masturu - $50', value: 'Ketchuru and Masturu' },
+          { name: 'Garama and Madundung - $35', value: 'Garama and Madundung' },
+          { name: 'Spooky and Pumpky - $60', value: 'Spooky and Pumpky' },
+          { name: 'Lavadorito Spinito - $75', value: 'Lavadorito Spinito' },
+          { name: 'Los Spaghettis - $20', value: 'Los Spaghettis' },
+          { name: 'La Casa Boo - $45', value: 'La Casa Boo' },
+          { name: 'Fragrama and Chocrama - $49', value: 'Fragrama and Chocrama' },
+          { name: 'La Secret Combinasion - $34', value: 'La Secret Combinasion' },
+          { name: 'Burguro and Fryuro - $110', value: 'Burguro and Fryuro' },
+          { name: 'Dragon Cannelloni - $80', value: 'Dragon Cannelloni' },
+          { name: 'Capitano Moby - $80', value: 'Capitano Moby' },
+          { name: 'Strawberry Elephant - $90', value: 'Strawberry Elephant' },
+          { name: 'Meowl - $1400', value: 'Meowl' }
         ))
 
     .addStringOption(opt =>
