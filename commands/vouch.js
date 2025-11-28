@@ -7,6 +7,7 @@ module.exports = {
     .setName('vouch')
     .setDescription('Submit a vouch with an image and your comment')
 
+    // REQUIRED FIRST
     .addAttachmentOption(opt =>
       opt.setName('image')
         .setDescription('Upload an image of your item or delivery')
@@ -17,7 +18,12 @@ module.exports = {
         .setDescription('Was this a custom order?')
         .setRequired(true))
 
-    // ITEM MENU 1 (CHOICES 1–25)
+    .addStringOption(opt =>
+      opt.setName('comment')
+        .setDescription('Say something about your experience')
+        .setRequired(true))
+
+    // OPTIONAL AFTER REQUIRED  
     .addStringOption(opt =>
       opt.setName('item1')
         .setDescription('Select your item (list 1)')
@@ -50,7 +56,6 @@ module.exports = {
           { name: 'Los Chicleteiras - $5', value: 'Los Chicleteiras' }
         ))
 
-    // ITEM MENU 2 (CHOICES 26–50)
     .addStringOption(opt =>
       opt.setName('item2')
         .setDescription('Select your item (list 2)')
@@ -83,7 +88,6 @@ module.exports = {
           { name: 'Tang Tang Kelentang - $25', value: 'Tang Tang Kelentang' }
         ))
 
-    // ITEM MENU 3 (CHOICES 51–68)
     .addStringOption(opt =>
       opt.setName('item3')
         .setDescription('Select your item (list 3)')
@@ -110,15 +114,9 @@ module.exports = {
         ))
 
     .addStringOption(opt =>
-      opt.setName('comment')
-        .setDescription('Say something about your experience')
-        .setRequired(true))
-
-    .addStringOption(opt =>
       opt.setName('customname')
-        .setDescription('Enter the custom order name if customorder = true')
-        .setRequired(false)
-    ),
+        .setDescription('Custom order item name')
+        .setRequired(false)),
 
   async execute(interaction) {
     const image = interaction.options.getAttachment('image');
