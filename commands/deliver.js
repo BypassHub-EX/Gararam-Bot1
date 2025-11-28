@@ -10,7 +10,7 @@ module.exports = {
         .setRequired(true))
     .addUserOption(opt => 
       opt.setName('user')
-        .setDescription('Buyer\'s Discord user')
+        .setDescription('Buyer's Discord user')
         .setRequired(true))
     .addStringOption(opt => 
       opt.setName('link')
