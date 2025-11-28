@@ -37,7 +37,7 @@ module.exports = {
       await user.send(
         `Your order has been cancelled.\n\n` +
         `Order ID: ${orderId}\n` +
-        `It has been removed from our list on Grow Up.\n\n` +
+        `It has been removed from our list on Gararam.\n\n` +
         `If this was a mistake, you can reach out in the server and we’ll sort it out.`
       );
 
