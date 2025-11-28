@@ -31,7 +31,7 @@ module.exports = {
 
     const content = ping ? `${ping}` : null;
 
-    await interaction.reply({ content: '✅ Announcement sent!', ephemeral: true });
+    await interaction.reply({ content: 'Announcement sent!', ephemeral: true });
 
     await interaction.channel.send({ content, embeds: [embed] });
   }
