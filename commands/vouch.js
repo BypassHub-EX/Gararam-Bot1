@@ -7,7 +7,6 @@ module.exports = {
     .setName('vouch')
     .setDescription('Submit a vouch with an image and your comment')
 
-    // REQUIRED OPTIONS FIRST
     .addAttachmentOption(opt =>
       opt.setName('image')
         .setDescription('Upload an image of your item or delivery')
@@ -18,10 +17,11 @@ module.exports = {
         .setDescription('Was this a custom order?')
         .setRequired(true))
 
+    // ITEM MENU 1 (CHOICES 1–25)
     .addStringOption(opt =>
-      opt.setName('item')
-        .setDescription('What item did you purchase?')
-        .setRequired(true)
+      opt.setName('item1')
+        .setDescription('Select your item (list 1)')
+        .setRequired(false)
         .addChoices(
           { name: 'Guerriro Digitale - $1', value: 'Guerriro Digitale' },
           { name: 'Job Job Job Sahur - $1', value: 'Job Job Job Sahur' },
@@ -47,7 +47,15 @@ module.exports = {
           { name: 'La Grande Combinassion - $5', value: 'La Grande Combinassion' },
           { name: 'Rang Ring Bus - $7', value: 'Rang Ring Bus' },
           { name: 'Guest 666 - $80', value: 'Guest 666' },
-          { name: 'Los Chicleteiras - $5', value: 'Los Chicleteiras' },
+          { name: 'Los Chicleteiras - $5', value: 'Los Chicleteiras' }
+        ))
+
+    // ITEM MENU 2 (CHOICES 26–50)
+    .addStringOption(opt =>
+      opt.setName('item2')
+        .setDescription('Select your item (list 2)')
+        .setRequired(false)
+        .addChoices(
           { name: '67 - $5', value: '67' },
           { name: 'Mariachi Corazoni - $10', value: 'Mariachi Corazoni' },
           { name: 'Swag Soda - $5', value: 'Swag Soda' },
@@ -72,7 +80,15 @@ module.exports = {
           { name: 'Los Primos - $55', value: 'Los Primos' },
           { name: 'Eviledon - $17', value: 'Eviledon' },
           { name: 'Los Tacoritas - $30', value: 'Los Tacoritas' },
-          { name: 'Tang Tang Kelentang - $25', value: 'Tang Tang Kelentang' },
+          { name: 'Tang Tang Kelentang - $25', value: 'Tang Tang Kelentang' }
+        ))
+
+    // ITEM MENU 3 (CHOICES 51–68)
+    .addStringOption(opt =>
+      opt.setName('item3')
+        .setDescription('Select your item (list 3)')
+        .setRequired(false)
+        .addChoices(
           { name: 'Ketupat Kepat - $35', value: 'Ketupat Kepat' },
           { name: 'Los Bros - $15', value: 'Los Bros' },
           { name: 'Tictac Sahur - $39', value: 'Tictac Sahur' },
@@ -98,23 +114,26 @@ module.exports = {
         .setDescription('Say something about your experience')
         .setRequired(true))
 
-    // OPTIONAL LAST
     .addStringOption(opt =>
       opt.setName('customname')
-        .setDescription('Enter the custom order name (leave empty if not custom)')
+        .setDescription('Enter the custom order name if customorder = true')
         .setRequired(false)
     ),
 
   async execute(interaction) {
     const image = interaction.options.getAttachment('image');
     const customOrder = interaction.options.getBoolean('customorder');
-    const item = interaction.options.getString('item');
-    const customName = interaction.options.getString('customname');
     const comment = interaction.options.getString('comment');
+    const customName = interaction.options.getString('customname');
+
+    const item =
+      interaction.options.getString('item1') ||
+      interaction.options.getString('item2') ||
+      interaction.options.getString('item3');
 
     const finalItemName = customOrder
       ? (customName || 'Custom Order')
-      : item;
+      : (item || 'Unknown Item');
 
     const embed = new EmbedBuilder()
       .setTitle(`New Vouch for ${finalItemName}`)
